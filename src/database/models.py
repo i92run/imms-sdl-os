@@ -22,6 +22,14 @@ from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from abc import ABC, abstractmethod
+
+# solid_dosing_v2
+import sys
+from src.pipeline.solid_dosing_v2.workflows.dosing_workflow import DosingWorkflowManager
+from src.pipeline.solid_dosing_v2.utils.logger import CSVLogger
+from src.pipeline.solid_dosing_v2.utils.exceptions import HardwareConnectionError, XPRDoorError
+from src.pipeline.solid_dosing_v2.config.settings import CSV_FILE_NAME
 
 # ─────────────────────────────────────────────────────────────
 # 0. Unit Operation 정의 (실험팀 프로토콜 §4, §5 기반)
@@ -209,6 +217,11 @@ class AnalyzeOmParams(BaseModel):
     sample_holder: str
 
 
+def validate_operation_params(operation: OperationType, params: dict) -> BaseModel:
+    """Task.parameters를 operation 종류에 맞는 Pydantic 모델로 검증한다."""
+    model = OPERATION_PARAM_MODEL[operation]
+    return model(**params)
+
 # Operation → Parameter 모델 매핑 (Task 생성 시 이걸로 validate)
 OPERATION_PARAM_MODEL: dict[OperationType, type[BaseModel]] = {
     OperationType.DISPENSE_SOLID: DispenseSolidParams,
@@ -233,11 +246,51 @@ OPERATION_PARAM_MODEL: dict[OperationType, type[BaseModel]] = {
 }
 
 
-def validate_operation_params(operation: OperationType, params: dict) -> BaseModel:
-    """Task.parameters를 operation 종류에 맞는 Pydantic 모델로 검증한다."""
-    model = OPERATION_PARAM_MODEL[operation]
-    return model(**params)
+class BasePipeline(ABC):
+    def __init__(self, params: BaseModel):
+        self.params = params
 
+    @abstractmethod
+    def execute(self) -> Any:
+        """성공 시 결과 반환, 실패 시 PipelineError."""
+
+
+class DispenseSolidPipeline(BasePipeline):
+    def __init__(self, params: BaseModel):
+        self.logger = CSVLogger(filepath=CSV_FILE_NAME)
+        self.manager = DosingWorkflowManager(logger=self.logger)
+
+    def execute(self):
+        try:
+            self.manager.initialize_hardware()
+            self.manager.run()
+            
+        except (HardwareConnectionError, XPRDoorError) as safe_err:
+            print(f"\n[System Halt] {safe_err}")
+            sys.exit(1)
+            
+        except KeyboardInterrupt:
+            print("\n\n[EMERGENCY STOP] Ctrl+C detected. Initiating safe hardware shutdown...")
+            
+            # Safely detach robot and cancel balance operations
+            self.manager.ur3e.disconnect()
+            try:
+                self.manager.xpr.cancel_task()
+                print("XPR Balance task cancelled successfully.")
+            except Exception as e:
+                print(f"Failed to cleanly cancel XPR task: {e}")
+            
+
+# Operation → Pipeline 모델 매핑 (build_action()에 사용)
+OPERATION_PIPELINE: dict[OperationType, type[BasePipeline]] = {
+    OperationType.DISPENSE_SOLID: DispenseSolidPipeline,
+}
+
+def build_pipeline(operation: OperationType, params: dict) -> BasePipeline:
+    if operation not in OPERATION_PIPELINE:
+        raise KeyError(f"No pipeline registered for {operation.value}")
+    validated = validate_operation_params(operation, params)
+    return OPERATION_PIPELINE[operation](validated)
 
 # ─────────────────────────────────────────────────────────────
 # 2. 핵심 컬렉션: Experiment / Task / Device / Sample
@@ -500,6 +553,7 @@ class Task(BaseModel):
     actions: list[Action] = []
     material_usage: Optional[MaterialUsage] = None
     errors: list[ErrorRecord] = []
+    pipeline: Optional[str] = None
 
     # ── Scheduler 인터페이스 필드 (job schema: value/duration/device/precedence/deadline) ──
     scheduler_value: Optional[float] = None
@@ -575,6 +629,9 @@ class Task(BaseModel):
                         f"이전 Action({prev.action_type}, status={prev.status})이 success여야 "
                         f"실행 가능합니다."
                     )
+
+    def build_operation_pipeline(self):
+        self.pipeline = build_pipeline(self.operation, self.parameters)
 
 
 class Device(BaseModel):
