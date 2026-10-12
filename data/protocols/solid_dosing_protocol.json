@@ -1,0 +1,23 @@
+{
+  "_comment": "고체 분주 실증 프로토콜",
+  "protocol_name": "Solid Dosing Protocol",
+  "protocol_version": "26.10.10",
+  "target_material": null,
+  "reagents": [
+    { "name": "BTC (Trimesic Acid)", "role": "Organic Linker", "amount": "21 mg", "dispense_device": "Solid Dispenser", "notes": null }
+  ],
+  "devices": [
+    { "name": "Solid Dispenser", "device_type": "solid_dispenser", "connection": "python_api", "shared_phases": ["A"] }
+  ],
+  "phases": [
+    {
+      "phase": "A", "title": "고체 분주",
+      "steps": [
+        { "step_code": "A-1", "operation": "DISPENSE_SOLID", "parameters": { "reagent": "BDC", "mass_mg": 10, "tolerance_mg": 2, "vessel": "Vial_5mL" }, "device": "Solid Dispenser", "output": null }
+      ]
+    }
+  ],
+  "global_notes": [
+    "고체 분주 실증 프로토콜"
+  ]
+}
