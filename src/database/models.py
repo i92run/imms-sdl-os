@@ -258,7 +258,6 @@ class BasePipeline(ABC):
 class DispenseSolidPipeline(BasePipeline):
     def __init__(self, params):
         self.logger = CSVLogger(filepath=CSV_FILE_NAME)
-        # print(str(params.reagent), float(params.mass_mg), "Milligram")
         self.manager = DosingWorkflowManager(logger=self.logger)
         self.manager.prompt_substance(params)
 
