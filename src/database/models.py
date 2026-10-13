@@ -282,6 +282,10 @@ class DispenseSolidPipeline(BasePipeline):
             except Exception as e:
                 print(f"Failed to cleanly cancel XPR task: {e}")
             
+            print("Shutdown complete. Exiting gracefully.")
+            sys.exit(130)
+
+            
 
 # Operation → Pipeline 모델 매핑 (build_action()에 사용)
 OPERATION_PIPELINE: dict[OperationType, type[BasePipeline]] = {

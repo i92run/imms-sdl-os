@@ -38,16 +38,18 @@ class DosingWorkflowManager:
     #     return user_substance, target_val, target_unit
     def prompt_substance(self, params) -> tuple:
         self.user_substance = str(params.reagent)
-        self.target_val = float(params.mass_mg)
-        self.user_substance = "Milligram"
+        self.target_value = float(params.mass_mg)
+        self.target_unit = "Milligram"
 
     def run(self):
         # substance_name, target_value, target_unit = self.prompt_substance()
         substance_name = self.user_substance
-        target_val = self.target_val
-        user_substance = self.user_substance
+        target_value = self.target_value
+        target_unit = self.target_unit
         if not substance_name:
             return
+
+        print("input complete")
 
         with self.xpr.session():
             self.xpr.wakeup_and_zero()
@@ -90,6 +92,9 @@ class DosingWorkflowManager:
                         print(f"  Error    : {res.error}")
                     print("="*40 + "\n")
 
+                    
+                    print("log record")
+
                     self.logger.log_record(
                         vial=res.vial_name,
                         substance=res.substance_name,
@@ -102,9 +107,13 @@ class DosingWorkflowManager:
                         error_msg=res.error
                     )
 
+                    print("log record complete")
+
                 # Explicit removal: XPR does not trigger remove_vial natively after dosing
                 print("\n[Workflow] Dosing phase complete. Initiating explicit vial removal...")
                 self.ur3e.remove_vial(VIAL_NAME)
+
+                print("remove vial complete")
 
             except Exception as e:
                 print(f"Workflow Exception: {e}")
@@ -112,3 +121,5 @@ class DosingWorkflowManager:
                 raise e
 
             self.xpr.complete_task()
+
+            print("xpr complete")
