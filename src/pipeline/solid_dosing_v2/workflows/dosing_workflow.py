@@ -24,21 +24,28 @@ class DosingWorkflowManager:
         self.xpr.connect()
         self.ur3e.connect()
 
-    def prompt_substance(self) -> tuple:
-        print("============================================================")
-        print("RECIPE INDEX: " + ", ".join(SUBSTANCE_RECIPES.keys()))
-        user_substance = input("Input: Enter the name of the target substance: ").strip()
-        print("============================================================")
+    # def prompt_substance(self) -> tuple:
+    #     print("============================================================")
+    #     print("RECIPE INDEX: " + ", ".join(SUBSTANCE_RECIPES.keys()))
+    #     user_substance = input("Input: Enter the name of the target substance: ").strip()
+    #     print("============================================================")
         
-        if user_substance not in SUBSTANCE_RECIPES:
-            print(f"Error: '{user_substance}' is not registered in recipes.")
-            return None, None, None
+    #     if user_substance not in SUBSTANCE_RECIPES:
+    #         print(f"Error: '{user_substance}' is not registered in recipes.")
+    #         return None, None, None
 
-        target_val, target_unit = SUBSTANCE_RECIPES[user_substance]
-        return user_substance, target_val, target_unit
+    #     target_val, target_unit = SUBSTANCE_RECIPES[user_substance]
+    #     return user_substance, target_val, target_unit
+    def prompt_substance(self, params) -> tuple:
+        self.user_substance = str(params.reagent)
+        self.target_val = float(params.mass_mg)
+        self.user_substance = "Milligram"
 
     def run(self):
-        substance_name, target_value, target_unit = self.prompt_substance()
+        # substance_name, target_value, target_unit = self.prompt_substance()
+        substance_name = self.user_substance
+        target_val = self.target_val
+        user_substance = self.user_substance
         if not substance_name:
             return
 
